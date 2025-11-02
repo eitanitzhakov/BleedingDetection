@@ -1,9 +1,11 @@
 import os
 import numpy as np
 import pandas as pd
+import tensorflow as tf
+from tensorflow.keras import layers
 
 class DataLoader:
-    def __init__(self, data_dir, csv_path, batch_size, preprocessor, to_tensor, shuffle=True):
+    def __init__(self, data_dir, csv_path, batch_size, preprocessor, to_tensor, shuffle=True, augment=True):
         self.data_dir = data_dir
         self.csv_path = csv_path
         self.batch_size = batch_size
@@ -11,7 +13,14 @@ class DataLoader:
         self.to_tensor = to_tensor
         self.shuffle = shuffle
 
-        # טוען את קובץ התוויות ובונה את רשימות הנתיבים והתיוגים
+        self.augment_layer = tf.keras.Sequential([
+            layers.RandomFlip("horizontal"),
+            layers.RandomRotation(0.05),
+            layers.RandomZoom(0.05),
+            layers.RandomContrast(0.1),
+        ])
+
+
         self.file_paths, self.labels = self._load_labels()
         self.on_epoch_end()
 
