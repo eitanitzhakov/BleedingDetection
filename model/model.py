@@ -16,3 +16,8 @@ class Model:
         x = layers.Dropout(0.3)(x)
         output = layers.Dense(self.classes, activation='sigmoid')(x)
 
+        return models.Model(input = base_model.input, output = output, name = 'Hemmorage_Bleeding_ClassificationModel')
+
+    def build_model(self):
+        model = self.__build_model()
+
