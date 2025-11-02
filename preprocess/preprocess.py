@@ -51,11 +51,18 @@ class PreProcess:
         stacked = np.stack([brain, subdural, bone], axis=-1)
         return stacked.astype(np.float32)
 
+    def crop_brain_area(self, img):
+        mask = img > np.percentile(img, 5)  # אזורים לא שחורים
+        coords = np.argwhere(mask)
+        y0, x0 = coords.min(axis=0)
+        y1, x1 = coords.max(axis=0)
+        cropped = img[y0:y1, x0:x1]
+        return cropped
+
     def preprocess(self, filepath, size=(224, 224)):
         dicom = self.load_dicom(filepath)
         hu = self.to_hu(dicom)
-        h, w = hu.shape[:2]
-        hu = hu[int(0.05 * h):int(0.95 * h), int(0.05 * w):int(0.95 * w)]
+        hu = self.crop_brain_area(hu)
         brain, subdural, bone = self.apply_3_windows(hu)
         brain = cv2.resize(brain, size)
         subdural = cv2.resize(subdural, size)
