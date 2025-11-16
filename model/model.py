@@ -1,13 +1,17 @@
 from tensorflow.keras.applications import EfficientNetV2B0
 from tensorflow.keras import layers, models
 from tensorflow.keras.metrics import AUC
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.optimizers import AdamW
+
 
 class Model:
-    def __init__(self, input_shape=(224,224,3), classes=6):
+    def __init__(self, input_shape=(224, 224, 3), classes=6, lr=1e-4, weight_decay=1e-5):
         self.input_shape = input_shape
         self.classes = classes
-        self.model = self.__build_model()
+        self.lr = lr
+        self.weight_decay = weight_decay
+
+        self.model, self.base_model = self.__build_model()
 
     def __build_model(self):
         base = EfficientNetV2B0(
@@ -17,60 +21,72 @@ class Model:
         )
         base.trainable = False
 
+        inputs = base.input
         x = base.output
-        x = layers.SpatialDropout2D(0.12)(x)
-        x = layers.GlobalAveragePooling2D()(x)
-        x = layers.Dropout(0.22)(x)
-        x = layers.LayerNormalization()(x)
-        x = layers.Dense(128, activation="relu")(x)
-        x = layers.Dropout(0.35)(x)
-        out = layers.Dense(self.classes, activation="sigmoid")(x)
 
-        return models.Model(
-            inputs=base.input,
-            outputs=out,
-            name="ICH_EfficientNet"
+        x = layers.SpatialDropout2D(0.10, name="spatial_dropout")(x)
+
+        x = layers.GlobalAveragePooling2D(name="gap")(x)
+
+        x = layers.Dropout(0.20, name="dense_dropout_1")(x)
+        x = layers.LayerNormalization(name="ln")(x)
+        x = layers.Dense(128, activation="relu", name="dense_128")(x)
+        x = layers.Dropout(0.30, name="dense_dropout_2")(x)
+
+
+        outputs = layers.Dense(self.classes, activation="sigmoid", name="predictions")(x)
+
+        model = models.Model(
+            inputs=inputs,
+            outputs=outputs,
+            name="ICH_EfficientNetV2B0"
         )
 
+        return model, base
+
     def compile(self):
+        optimizer = AdamW(
+            learning_rate=self.lr,
+            weight_decay=self.weight_decay
+        )
+
         self.model.compile(
-            optimizer="AdamW",
+            optimizer=optimizer,
             loss="binary_crossentropy",
             metrics=[
                 "accuracy",
-                AUC(name="auc")
+                AUC(
+                    name="auc",
+                    multi_label=True,
+                    num_labels=self.classes
+                )
             ]
         )
 
     def summary(self):
         return self.model.summary()
 
-    def predict(self, tensor):
-        return self.model.predict(tensor)
+    def predict(self, x, **kwargs):
+        return self.model.predict(x, **kwargs)
 
-    def unfreeze(self, num_layers=40):
-        for layer in self.model.layers[-num_layers:]:
-            layer.trainable = True
+    def unfreeze(self, num_layers=40, new_lr=None):
+        for layer in self.base_model.layers[-num_layers:]:
+            if isinstance(layer, layers.BatchNormalization):
+                layer.trainable = False
+            else:
+                layer.trainable = True
 
-    def fit(self, train_data, val_data, epochs=20):
-        callbacks = [
-            EarlyStopping(
-                monitor="val_auc",
-                patience=3,
-                mode="max",
-                restore_best_weights=True
-            ),
-            ModelCheckpoint(
-                "best_model.h5",
-                monitor="val_auc",
-                mode="max",
-                save_best_only=True
-            )
-        ]
+        if new_lr is None:
+            self.lr = self.lr / 10.0
+        else:
+            self.lr = new_lr
+
+        self.compile()
+
+    def fit(self, train_data, validation_data=None, epochs=20, callbacks=None):
         return self.model.fit(
             train_data,
-            validation_data=val_data,
+            validation_data=validation_data,
             epochs=epochs,
             callbacks=callbacks
         )
-
