@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 
 
-class DataLoader:
+class DataLoader(Sequence):
     def __init__(
         self,
         data_dir,
