@@ -9,7 +9,7 @@ def main():
     pipeline = TrainPipeline(
         data_dir=data_dir,
         csv_path=csv_path,
-        batch_size=32,
+        batch_size=2,
         val_split=0.1,
         checkpoint_path="checkpoints/best_auc.h5",
         final_model_path="saved_models/final_model.h5"
