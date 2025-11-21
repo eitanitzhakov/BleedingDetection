@@ -26,7 +26,7 @@ def main():
     pipeline.train_stage1(epochs=5)
 
     print("\nFine tuning...")
-    pipeline.fine_tune(num_layers=40, epochs=10)
+    pipeline.fine_tune(num_layers=40, epochs=1)
 
     pipeline.save_final()
 
