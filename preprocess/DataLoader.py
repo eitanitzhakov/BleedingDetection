@@ -3,9 +3,10 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from tensorflow.keras import layers
-from tensorflow.keras.utils import Sequence
+from tensorflow.keras.utils import Sequence   # ← חובה!
 
-class DataLoader(Sequence):
+
+class DataLoader(Sequence):   # ← חובה!
     def __init__(
         self,
         data_dir,
@@ -71,23 +72,13 @@ class DataLoader(Sequence):
             if col not in df_wide.columns:
                 df_wide[col] = 0
 
-        file_paths = []
-        for bid in df_wide["base_id"]:
-            file_paths.append(os.path.join(self.data_dir, bid + ".dcm"))
-
+        file_paths = [os.path.join(self.data_dir, bid + ".dcm") for bid in df_wide["base_id"]]
         labels = df_wide[hemorrhage_types].values
 
         return np.array(file_paths), np.array(labels, dtype=np.float32)
 
     def __len__(self):
         return len(self.file_paths) // self.batch_size
-
-    def on_epoch_end(self):
-        if self.shuffle:
-            idx = np.arange(len(self.file_paths))
-            np.random.shuffle(idx)
-            self.file_paths = self.file_paths[idx]
-            self.labels = self.labels[idx]
 
     def __getitem__(self, index):
         start = index * self.batch_size
@@ -116,6 +107,17 @@ class DataLoader(Sequence):
             batch_images = self.augment_layer(batch_images)
 
         return batch_images, np.array(valid_labels)
+
+    def on_epoch_end(self):
+        if self.shuffle:
+            idx = np.arange(len(self.file_paths))
+            np.random.shuffle(idx)
+            self.file_paths = self.file_paths[idx]
+            self.labels = self.labels[idx]
+
+    def __iter__(self):   # ← חובה!
+        for i in range(len(self)):
+            yield self[i]
 
     def split(self, val_split=0.1):
         total = len(self.file_paths)
@@ -152,3 +154,4 @@ class DataLoader(Sequence):
         )
 
         return train_loader, val_loader
+
