@@ -17,7 +17,7 @@ class Model:
         base = EfficientNetV2B0(
             include_top=False,
             input_shape=self.input_shape,
-            weights="imagenet"
+            weights= None
         )
         base.trainable = False
 
